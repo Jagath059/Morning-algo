@@ -1,0 +1,60 @@
+<mat-toolbar class="topbar">
+  <div class="brand">
+    <span class="mark">TE</span>
+    <strong>TradingEngineAI</strong>
+  </div>
+  <div class="top-meta">
+    <span>{{ clock() }} IST</span>
+    @if (overview(); as view) {
+      <mat-chip class="session-chip">{{ sessionLabel(view.session_status) }}</mat-chip>
+      <span>Refreshed {{ view.as_of | date: 'HH:mm:ss' : '+0530' }}</span>
+    }
+    <span class="connection" [attr.data-state]="connection()">{{ connection() }}</span>
+  </div>
+</mat-toolbar>
+
+<main>
+  @if (overview()?.auth_mode === 'local-development') {
+    <p class="banner">
+      Local development is running without Firebase sign-in. Prices stay blank until a Kite Connect key and licensed GIFT and global feeds are configured. This screen does not place orders.
+    </p>
+  }
+  @if (loadError(); as message) {
+    <p class="banner warning-banner">{{ message }}</p>
+  }
+
+  @if (overview(); as view) {
+    <section class="grid">
+      <app-gift-nifty-card [quote]="view.gift_nifty" [sessionName]="giftSession()" />
+      <app-nifty-prediction-card [prediction]="niftyPrediction()" />
+      <app-sensex-prediction-card [prediction]="sensexPrediction()" />
+      <app-market-overview title="Nifty 50 levels" [overview]="view.nifty50" />
+      <app-market-overview title="Sensex levels" [overview]="view.sensex" />
+      @if (globals(); as markets) {
+        <app-global-markets [markets]="markets" />
+      }
+      @if (bias(); as biasView) {
+        <app-intraday-bias [bias]="biasView" />
+      }
+      <app-market-chart title="GIFT Nifty movement" [candles]="[]" [reason]="view.gift_nifty.reason ?? null" />
+      <app-market-chart title="Nifty intraday" [candles]="niftyIntraday()?.candles ?? []" [reason]="niftyIntraday()?.reason ?? null" />
+      <app-market-chart title="Sensex intraday" [candles]="sensexIntraday()?.candles ?? []" [reason]="sensexIntraday()?.reason ?? null" />
+      @if (niftyRange(); as range) {
+        <app-opening-range title="Nifty 50" [range]="range" />
+      }
+      @if (sensexRange(); as range) {
+        <app-opening-range title="Sensex" [range]="range" />
+      }
+      @if (niftyVwap(); as vwap) {
+        <app-vwap-indicator title="Nifty 50" [vwap]="vwap" />
+      }
+      @if (sensexVwap(); as vwap) {
+        <app-vwap-indicator title="Sensex" [vwap]="vwap" />
+      }
+      <app-market-timeline [now]="now()" />
+      <app-data-source-status [rows]="sources()" />
+    </section>
+  } @else if (!loadError()) {
+    <p class="banner">Loading the morning dashboard…</p>
+  }
+</main>

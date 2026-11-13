@@ -1,6 +1,6 @@
 # TradingEngineAI build order
 
-Status of this repository: **specification only**. No application code exists yet. The source of truth for behaviour is [docs/TRADINGENGINEAI_SPECIFICATION.md](docs/TRADINGENGINEAI_SPECIFICATION.md).
+A local dashboard and API now run with unconfigured market feeds. The source of truth for behaviour is [docs/TRADINGENGINEAI_SPECIFICATION.md](docs/TRADINGENGINEAI_SPECIFICATION.md). Phases below stay open until every acceptance check in that phase is met. The runnable shell covers the visible dashboard, the REST and WebSocket routes, and the heuristic engine. Firebase, live Kite quotes, licensed GIFT and global adapters, Docker, and calibration are still ahead.
 
 Update this file at the end of every completed milestone: set the status, record the date in `YYYY-MM-DD`, and list the commits or pull requests that finished it. Leave later milestones untouched.
 

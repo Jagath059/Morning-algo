@@ -2,7 +2,28 @@
 
 TradingEngineAI is a personal, analytical morning dashboard for Indian index sentiment. It describes an expected Nifty 50 and Sensex opening tone before 09:15 IST and, after the cash open, an opening-range and VWAP confirmation. It is decision support for the account owner. It does not place orders.
 
-This repository currently holds the implementation specification. Application code starts from [buildOrder.md](buildOrder.md).
+The dashboard and API run locally with market feeds left blank until credentials are configured. The behaviour contract remains [docs/TRADINGENGINEAI_SPECIFICATION.md](docs/TRADINGENGINEAI_SPECIFICATION.md). Build status is in [buildOrder.md](buildOrder.md).
+
+## Run locally
+
+From two terminals:
+
+```bash
+cd backend
+python3 -m venv .venv
+.venv/bin/pip install -r requirements.txt
+.venv/bin/uvicorn app.main:app --host 0.0.0.0 --port 8000
+```
+
+```bash
+cd frontend
+npm install
+npx ng serve --host 0.0.0.0 --port 4200
+```
+
+Open http://localhost:4200. The Angular dev server proxies `/api` and `/ws` to the API. Swagger is at http://localhost:8000/docs.
+
+Local development without `FIREBASE_PROJECT_ID` serves the dashboard without a sign-in token. Production refuses to start in that mode. Prices stay empty until `KITE_API_KEY`, `GIFT_NIFTY_BASE_URL`, and `GLOBAL_INDICES_BASE_URL` are set to licensed sources.
 
 ## Read these first
 
