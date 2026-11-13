@@ -5,6 +5,21 @@ from app.main import app
 client = TestClient(app)
 
 
+def test_preview_is_public_and_production_requires_firebase():
+    from app.config import Settings
+
+    preview = Settings(app_env="preview", firebase_project_id="")
+    assert preview.auth_mode == "public-preview"
+    assert preview.auth_disabled is True
+    production = Settings(app_env="production", firebase_project_id="", allowed_uids="")
+    try:
+        production.validate_runtime()
+    except RuntimeError as exc:
+        assert "Firebase" in str(exc)
+    else:
+        raise AssertionError("production without Firebase should refuse to start")
+
+
 def test_health_hides_secrets():
     response = client.get("/api/v1/health")
     assert response.status_code == 200

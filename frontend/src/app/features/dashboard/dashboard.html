@@ -14,7 +14,11 @@
 </mat-toolbar>
 
 <main>
-  @if (overview()?.auth_mode === 'local-development') {
+  @if (overview()?.auth_mode === 'public-preview') {
+    <p class="banner">
+      Public preview. Licensed market feeds are not configured, so prices stay blank. This screen does not place orders.
+    </p>
+  } @else if (overview()?.auth_mode === 'local-development') {
     <p class="banner">
       Local development is running without Firebase sign-in. Prices stay blank until a Kite Connect key and licensed GIFT and global feeds are configured. This screen does not place orders.
     </p>

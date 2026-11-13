@@ -23,7 +23,17 @@ npx ng serve --host 0.0.0.0 --port 4200
 
 Open http://localhost:4200. The Angular dev server proxies `/api` and `/ws` to the API. Swagger is at http://localhost:8000/docs.
 
-Local development without `FIREBASE_PROJECT_ID` serves the dashboard without a sign-in token. Production refuses to start in that mode. Prices stay empty until `KITE_API_KEY`, `GIFT_NIFTY_BASE_URL`, and `GLOBAL_INDICES_BASE_URL` are set to licensed sources.
+Local development without `FIREBASE_PROJECT_ID` serves the dashboard without a sign-in token. `APP_ENV=production` refuses to start until Firebase and `ALLOWED_UIDS` are set. Prices stay empty until `KITE_API_KEY`, `GIFT_NIFTY_BASE_URL`, and `GLOBAL_INDICES_BASE_URL` are set to licensed sources.
+
+## Live preview
+
+`APP_ENV=preview` serves the same blank-price dashboard on one origin, behind Nginx. Copy `.env.example` to `.env` and run:
+
+```bash
+docker compose up --build
+```
+
+Nginx listens on port 80 and proxies `/api`, `/ws`, and `/docs` to the API. A public preview still has no broker credentials and does not place orders. A Firebase-backed production deployment uses `APP_ENV=production` plus `FIREBASE_PROJECT_ID` and `ALLOWED_UIDS`.
 
 ## Read these first
 

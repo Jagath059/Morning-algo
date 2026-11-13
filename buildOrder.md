@@ -18,7 +18,7 @@ Market facts the schedule depends on are dated in the specification (checked 202
 | 5 | GIFT Nifty and global-index providers | Not started | |
 | 6 | Prediction engine and persistence | Not started | |
 | 7 | Live updates, charts, opening range, VWAP | Not started | |
-| 8 | Docker deployment | Not started | |
+| 8 | Docker deployment | In progress. Compose, Dockerfiles, and Nginx are in the repo. A public preview uses `APP_ENV=preview` because production still requires Firebase. | |
 | 9 | Historical backtesting and calibration gate | Not started | |
 
 ## Phase 1 — Angular dashboard UI

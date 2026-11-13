@@ -42,10 +42,20 @@ class Settings(BaseSettings):
 
     @property
     def auth_disabled(self) -> bool:
-        return self.app_env == "development" and not self.firebase_project_id
+        return self.app_env in {"development", "preview", "test"} and not self.firebase_project_id
+
+    @property
+    def auth_mode(self) -> str:
+        if self.firebase_project_id:
+            return "firebase"
+        if self.app_env == "preview":
+            return "public-preview"
+        return "local-development"
 
     def validate_runtime(self) -> None:
-        if self.app_env == "production" and self.auth_disabled:
+        if self.app_env not in {"development", "test", "preview", "production"}:
+            raise RuntimeError("APP_ENV must be development, test, preview, or production.")
+        if self.app_env == "production" and not self.firebase_project_id:
             raise RuntimeError("Production requires Firebase Authentication.")
         if self.app_env == "production" and not self.uid_allowlist:
             raise RuntimeError("Production requires ALLOWED_UIDS.")

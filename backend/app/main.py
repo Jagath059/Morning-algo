@@ -49,6 +49,15 @@ def _error(status: int, code: str, message: str) -> JSONResponse:
     return JSONResponse(status_code=status, content=body.model_dump(mode="json"))
 
 
+def _client_key(request: Request) -> str:
+    forwarded = request.headers.get("x-forwarded-for", "")
+    if forwarded:
+        return forwarded.split(",")[0].strip()
+    if request.client is None:
+        return "unknown"
+    return request.client.host or "unknown"
+
+
 def _identity(request: Request) -> str | None:
     if settings.auth_disabled:
         return "local-dev"
@@ -81,7 +90,8 @@ def _guard(request: Request):
         return None, _error(401, "UNAUTHENTICATED", "A valid Firebase ID token is required.")
     if uid == "":
         return None, _error(403, "FORBIDDEN", "This private dashboard is not enabled for this account.")
-    if _limited(uid):
+    limit_key = _client_key(request) if settings.auth_disabled else uid
+    if _limited(limit_key):
         return None, _error(429, "RATE_LIMITED", "The request rate for this account is over the limit.")
     return uid, None
 

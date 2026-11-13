@@ -67,7 +67,7 @@ class MarketState:
             trading_date=trading_date(now),
             as_of=now.astimezone(timezone.utc),
             session_status=session_status(now, self.clock()),
-            auth_mode="local-development" if self.settings.auth_disabled else "firebase",
+            auth_mode=self.settings.auth_mode,
             gift_nifty=_blank(gift_reason, "gift_http" if self.settings.gift_nifty_base_url else None),
             nifty50=InstrumentOverview(
                 previous_close=_blank(kite_reason, "kite" if self.settings.kite_api_key else None),
