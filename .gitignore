@@ -1,0 +1,12 @@
+.env
+**/.env
+**/*serviceAccount*.json
+**/*service-account*.json
+backend/secrets/
+**/tokens
+backend/.venv
+**/__pycache__
+**/.pytest_cache
+frontend/node_modules
+frontend/dist
+frontend/.angular

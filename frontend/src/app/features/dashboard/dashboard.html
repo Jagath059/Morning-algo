@@ -1,0 +1,220 @@
+<header class="board-top">
+  <div class="brand">
+    <span class="logo" aria-hidden="true">
+      <svg viewBox="0 0 32 32"><path d="M4 22h4V14H4zm8 0h4V8h-4zm8 0h4V11h-4z" /></svg>
+    </span>
+    <div>
+      <h1>Nifty 50 &amp; Sensex Morning Market Prediction</h1>
+      <p>Real-time insights before 9:15 AM</p>
+    </div>
+  </div>
+  <div class="top-meta">
+    <span class="live-dot" [attr.data-state]="sampleOn() ? 'sample' : connection()">{{ sampleOn() ? 'Sample' : (connection() === 'connected' ? 'Live' : connection()) }}</span>
+    <span>{{ headerClock() }} (IST)</span>
+    <button type="button" class="icon-button" (click)="refresh()" aria-label="Refresh data">↻</button>
+    <button type="button" class="mode-button" (click)="toggleSample()">
+      {{ sampleOn() ? 'Show live feeds' : 'Sample scenario' }}
+    </button>
+  </div>
+</header>
+
+<main class="board">
+  @if (sampleOn()) {
+    <p class="banner sample-banner">Sample scenario for this layout. The figures are not live market prices and are not today’s prediction.</p>
+  } @else if (overview()?.session_status === 'weekend') {
+    <p class="banner">Weekend. The cash session is closed. This board stays on the live feeds and does not fill in the last session’s prices.</p>
+  } @else if (overview()?.auth_mode === 'public-preview' || overview()?.auth_mode === 'firebase') {
+    <p class="banner">Prices appear only when a licensed feed returns them. This screen does not place orders.</p>
+  } @else if (overview()?.auth_mode === 'local-development') {
+    <p class="banner">Local development. Prices stay blank until licensed feeds are configured. This screen does not place orders.</p>
+  }
+  @if (loadError(); as message) {
+    <p class="banner warning-banner">{{ message }}</p>
+  }
+
+  @if (overview() || sampleOn()) {
+    @if (board(); as view) {
+      <section class="row prices">
+        <article class="panel">
+          <h2>GIFT Nifty{{ view.sample ? ' (SGX)' : '' }}</h2>
+          <div class="quote-line">
+            <p class="figure">{{ view.giftPrice }}</p>
+            @if (view.sample) {
+              <svg class="spark" viewBox="0 0 88 36" aria-hidden="true">
+                <path d="M2 28 L14 24 L24 26 L34 18 L46 20 L56 12 L68 14 L86 6" />
+              </svg>
+            }
+          </div>
+          @if (view.giftMove.text !== '—') {
+            <p class="move" [attr.data-tone]="view.giftMove.tone">{{ view.giftMove.text }}</p>
+          }
+          <p class="fine">{{ view.giftUpdated }}</p>
+        </article>
+        <article class="panel">
+          <h2>Nifty 50 (Pre-Open)</h2>
+          <p class="figure">{{ view.niftyPrice }}</p>
+          @if (view.niftyMove.text !== '—') {
+            <p class="move" [attr.data-tone]="view.niftyMove.tone">{{ view.niftyMove.text }}</p>
+          }
+          <p class="fine">{{ view.niftyNote }}</p>
+        </article>
+        <article class="panel">
+          <h2>Sensex (Pre-Open)</h2>
+          <p class="figure">{{ view.sensexPrice }}</p>
+          @if (view.sensexMove.text !== '—') {
+            <p class="move" [attr.data-tone]="view.sensexMove.tone">{{ view.sensexMove.text }}</p>
+          }
+          <p class="fine">{{ view.sensexNote }}</p>
+        </article>
+        <article class="panel prediction" [attr.data-tone]="view.headlineTone">
+          <h2>Prediction result</h2>
+          <p class="headline" [attr.data-tone]="view.headlineTone">{{ view.headline }}</p>
+          @if (view.experimental) {
+            <p class="badge">Experimental</p>
+            <p class="fine">Experimental heuristic score. This is not a statistically validated probability.</p>
+          }
+          <p class="fine">{{ view.scoreLabel }}{{ view.scoreValue != null ? ': ' + view.scoreValue + '%' : '' }}</p>
+          <div class="meter" aria-hidden="true"><span [style.width.%]="view.scoreValue ?? 0"></span></div>
+        </article>
+      </section>
+
+      <section class="row middle">
+        <article class="panel">
+          <h2>Global market sentiment</h2>
+          <div class="split">
+            <div>
+              <h3>US markets <span>Closed</span></h3>
+              @for (row of view.usClosed; track row.name) {
+                <p><span>{{ row.name }}</span><strong [attr.data-tone]="row.move.tone">{{ row.move.text }}</strong></p>
+              }
+            </div>
+            <div>
+              <h3>Asian markets <span>Live</span></h3>
+              @for (row of view.asiaLive; track row.name) {
+                <p><span>{{ row.name }}</span><strong [attr.data-tone]="row.move.tone">{{ row.move.text }}</strong></p>
+              }
+            </div>
+          </div>
+        </article>
+        <article class="panel">
+          <h2>Key indicators</h2>
+          <p><span>GIFT Nifty trend</span><strong [attr.data-tone]="view.giftTrend.tone">{{ view.giftTrend.text }}</strong></p>
+          <p><span>US market impact</span><strong>{{ view.usImpact }}</strong></p>
+          <p><span>Asian markets</span><strong>{{ view.asiaImpact }}</strong></p>
+          <p><span>FII activity (today)</span><strong>{{ view.fii }}</strong></p>
+        </article>
+        <article class="panel">
+          <h2>Intraday trading bias</h2>
+          <div class="bias-pair">
+            <div class="call" [attr.data-tone]="view.callTone">
+              <strong>CE (Call)</strong>
+              <span>{{ view.callTone === 'preferred' ? 'Preferred' : view.callTone === 'avoid' ? 'Avoid' : 'WAIT' }}</span>
+            </div>
+            <div class="put" [attr.data-tone]="view.putTone">
+              <strong>PE (Put)</strong>
+              <span>{{ view.putTone === 'preferred' ? 'Preferred' : view.putTone === 'avoid' ? 'Avoid' : 'WAIT' }}</span>
+            </div>
+          </div>
+          <p class="fine">Labels only. No order is sent.</p>
+        </article>
+      </section>
+
+      <section class="row lower">
+        <article class="panel">
+          <h2>Trend analysis</h2>
+          <div class="gauge-wrap">
+            <div class="gauge" [style.--score]="(view.scoreValue ?? 0) + '%'">
+              <strong>{{ view.scoreValue != null ? view.scoreValue + '%' : '—' }}</strong>
+              <span>{{ view.scoreLabel }}</span>
+            </div>
+            <ul>
+              @for (item of view.checks; track item.label) {
+                <li [class.on]="item.on">{{ item.label }}</li>
+              }
+            </ul>
+          </div>
+        </article>
+        <article class="panel">
+          <h2>Your morning action plan</h2>
+          <ol class="plan">
+            @for (step of view.plan; track step.time) {
+              <li [class.active]="step.active"><time>{{ step.time }}</time><span>{{ step.label }}</span></li>
+            }
+          </ol>
+        </article>
+        <article class="panel">
+          <h2>Key insights</h2>
+          <ul class="insights">
+            @for (line of view.insights; track line) {
+              <li>{{ line }}</li>
+            }
+          </ul>
+        </article>
+      </section>
+
+      @if (!sampleOn()) {
+        <section class="row depth">
+          <article class="panel">
+            <h2>Live session</h2>
+            <p><span>Session</span><strong>{{ sessionLabel(overview()!.session_status) }}</strong></p>
+            <p><span>Trading date</span><strong>{{ overview()!.trading_date }}</strong></p>
+            <p><span>Socket</span><strong>{{ connection() }}</strong></p>
+            <p><span>Updates</span><strong>{{ snapshotCount() }} · {{ liveAge() }}</strong></p>
+            <p class="fine">A snapshot arrives every 5 seconds. A price changes only when its configured feed returns one.</p>
+          </article>
+          <article class="panel">
+            <h2>Nifty 50 live read</h2>
+            @if (niftyPrediction(); as row) {
+              <p><span>Direction</span><strong>{{ row.direction }}</strong></p>
+              <p><span>Data quality</span><strong>{{ row.data_quality }}</strong></p>
+              <p><span>Model</span><strong>{{ row.model_version }} · {{ row.score_kind }}</strong></p>
+              @for (item of row.explanation; track item.feature) {
+                <p class="fine">{{ item.note }}</p>
+              } @empty {
+                <p class="fine">No fresh feature is in the score, so the direction stays UNKNOWN.</p>
+              }
+            } @else {
+              <p class="fine">The prediction row has not arrived.</p>
+            }
+            <p class="fine">Previous close: {{ overview()!.nifty50.previous_close.value ?? '—' }}. {{ overview()!.nifty50.previous_close.reason }}</p>
+            <p class="fine">Indicative open: {{ overview()!.nifty50.indicative_open.reason }}</p>
+          </article>
+          <article class="panel">
+            <h2>Sensex live read</h2>
+            @if (sensexPrediction(); as row) {
+              <p><span>Direction</span><strong>{{ row.direction }}</strong></p>
+              <p><span>Data quality</span><strong>{{ row.data_quality }}</strong></p>
+              @for (item of row.explanation; track item.feature) {
+                <p class="fine">{{ item.note }}</p>
+              } @empty {
+                <p class="fine">No fresh feature is in the score, so the direction stays UNKNOWN.</p>
+              }
+            } @else {
+              <p class="fine">The prediction row has not arrived.</p>
+            }
+            <p class="fine">Previous close: {{ overview()!.sensex.previous_close.value ?? '—' }}. {{ overview()!.sensex.previous_close.reason }}</p>
+            <p class="fine">Indicative open: {{ overview()!.sensex.indicative_open.reason }}</p>
+          </article>
+          <article class="panel">
+            <h2>Live feeds and the after-open rule</h2>
+            @for (source of sources(); track source.name) {
+              <p><span>{{ source.name }}</span><strong>{{ source.status }}</strong></p>
+            }
+            <p class="fine">{{ bias()?.explanation }}</p>
+            <p class="fine">{{ bias()?.risk_warning }}</p>
+            <p class="fine">Nifty candles: {{ niftyIntraday()?.reason }}</p>
+            <p class="fine">15-minute range: {{ niftyRange()?.range_15m?.reason }}</p>
+            <p class="fine">VWAP: {{ niftyVwap()?.reason }}</p>
+          </article>
+        </section>
+      }
+    }
+  } @else if (!loadError()) {
+    <p class="banner">Loading the morning dashboard…</p>
+  }
+
+  <footer class="board-foot">
+    <p>This is an indicative screen based on configured pre-market inputs and may not match the opening. CE and PE are labels, and this application does not place orders.</p>
+    <p>Powered by TradingEngineAI</p>
+  </footer>
+</main>
