@@ -1,23 +1,10 @@
-import { DatePipe } from '@angular/common';
 import { HttpErrorResponse } from '@angular/common/http';
-import { Component, DestroyRef, inject, signal } from '@angular/core';
+import { Component, DestroyRef, computed, inject, signal } from '@angular/core';
 import { takeUntilDestroyed } from '@angular/core/rxjs-interop';
-import { MatChipsModule } from '@angular/material/chips';
-import { MatToolbarModule } from '@angular/material/toolbar';
 import { forkJoin, interval } from 'rxjs';
 import { MarketApi } from '../../core/market-api';
 import { Bias, GlobalMarkets, Intraday, OpeningRange, Overview, Prediction, Vwap } from '../../core/models';
-import { DataSourceStatus } from './data-source-status';
-import { GiftNiftyCard } from './gift-nifty-card';
-import { GlobalMarketsComponent } from './global-markets';
-import { IntradayBias } from './intraday-bias';
-import { MarketChart } from './market-chart';
-import { MarketOverview } from './market-overview';
-import { MarketTimeline } from './market-timeline';
-import { NiftyPredictionCard } from './nifty-prediction-card';
-import { OpeningRangeComponent } from './opening-range';
-import { SensexPredictionCard } from './sensex-prediction-card';
-import { VwapIndicator } from './vwap-indicator';
+import { liveBoard, sampleBoard } from './morning-view';
 
 const SESSION_LABELS: Record<string, string> = {
   pre_gift_review: 'Before GIFT review',
@@ -32,22 +19,7 @@ const SESSION_LABELS: Record<string, string> = {
 
 @Component({
   selector: 'app-dashboard',
-  imports: [
-    DatePipe,
-    MatToolbarModule,
-    MatChipsModule,
-    GiftNiftyCard,
-    NiftyPredictionCard,
-    SensexPredictionCard,
-    MarketOverview,
-    GlobalMarketsComponent,
-    IntradayBias,
-    MarketChart,
-    OpeningRangeComponent,
-    VwapIndicator,
-    MarketTimeline,
-    DataSourceStatus,
-  ],
+  imports: [],
   templateUrl: './dashboard.html',
 })
 export class Dashboard {
@@ -72,6 +44,17 @@ export class Dashboard {
   readonly niftyVwap = signal<Vwap | null>(null);
   readonly sensexVwap = signal<Vwap | null>(null);
   readonly sources = signal<{ name: string; status: string }[]>([]);
+  readonly sampleOn = signal(false);
+  readonly board = computed(() =>
+    this.sampleOn()
+      ? sampleBoard(this.now())
+      : liveBoard({
+          overview: this.overview(),
+          markets: this.globals(),
+          prediction: this.niftyPrediction(),
+          now: this.now(),
+        }),
+  );
 
   constructor() {
     const timer = setInterval(() => {
@@ -92,6 +75,26 @@ export class Dashboard {
 
   sessionLabel(status: string): string {
     return SESSION_LABELS[status] ?? status;
+  }
+
+  headerClock(): string {
+    return new Intl.DateTimeFormat('en-IN', {
+      timeZone: 'Asia/Kolkata',
+      hour: 'numeric',
+      minute: '2-digit',
+      hour12: true,
+      day: 'numeric',
+      month: 'short',
+      year: 'numeric',
+    }).format(this.now());
+  }
+
+  toggleSample(): void {
+    this.sampleOn.update((on) => !on);
+  }
+
+  refresh(): void {
+    this.load();
   }
 
   private formatClock(current: Date): string {

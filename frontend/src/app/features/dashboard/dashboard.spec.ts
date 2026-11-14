@@ -99,6 +99,16 @@ describe('Dashboard', () => {
   it('renders the TradingEngineAI wordmark', () => {
     expect((fixture.nativeElement as HTMLElement).textContent).toContain('TradingEngineAI');
   });
+
+  it('keeps sample prices off the live board until the sample scenario is opened', () => {
+    const element = fixture.nativeElement as HTMLElement;
+    expect(element.textContent).not.toContain('25,645.50');
+    (element.querySelector('.mode-button') as HTMLButtonElement).click();
+    fixture.detectChanges();
+    expect(element.textContent).toContain('Sample scenario for this layout');
+    expect(element.textContent).toContain('25,645.50');
+    expect(element.textContent).toContain('not live market prices');
+  });
 });
 
 function flushDashboard(http: HttpTestingController): void {
