@@ -1,5 +1,6 @@
 from pathlib import Path
 
+from pydantic import AliasChoices, Field
 from pydantic_settings import BaseSettings, SettingsConfigDict
 
 
@@ -10,9 +11,20 @@ class Settings(BaseSettings):
     app_version: str = "0.1.0"
     allowed_origins: str = "http://localhost:4200,http://127.0.0.1:4200"
     allowed_uids: str = ""
-    firebase_project_id: str = ""
+    firebase_project_id: str = Field(
+        default="",
+        validation_alias=AliasChoices("FIREBASE_PROJECT_ID", "NEXT_PUBLIC_FIREBASE_PROJECT_ID"),
+    )
+    firebase_client_email: str = ""
+    firebase_private_key: str = ""
+    firebase_service_account_file: str = ""
 
-    kite_api_key: str = ""
+    kite_api_key: str = Field(default="", validation_alias=AliasChoices("KITE_API_KEY", "ZERODHA_API_KEY"))
+    kite_api_secret: str = Field(
+        default="",
+        validation_alias=AliasChoices("KITE_API_SECRET", "ZERODHA_API_SECRET"),
+    )
+    kite_access_token: str = ""
     gift_nifty_base_url: str = ""
     global_indices_base_url: str = ""
 
@@ -42,7 +54,13 @@ class Settings(BaseSettings):
 
     @property
     def auth_disabled(self) -> bool:
-        return self.app_env in {"development", "preview", "test"} and not self.firebase_project_id
+        # Preview and local development stay readable until the dashboard has a sign-in screen.
+        # Production always requires a Firebase token.
+        if self.app_env == "production":
+            return False
+        if self.app_env == "test":
+            return not self.firebase_project_id
+        return self.app_env in {"development", "preview"}
 
     @property
     def auth_mode(self) -> str:

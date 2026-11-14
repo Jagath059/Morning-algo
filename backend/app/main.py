@@ -26,6 +26,25 @@ from app.services.market_state import MarketState
 
 settings.validate_runtime()
 state = MarketState(settings)
+_firestore_status = "unconfigured"
+
+
+def _init_firestore() -> str:
+    if not settings.firebase_project_id or not settings.firebase_service_account_file:
+        return "unconfigured"
+    try:
+        import firebase_admin
+        from firebase_admin import credentials
+
+        if not firebase_admin._apps:
+            firebase_admin.initialize_app(credentials.Certificate(settings.firebase_service_account_file))
+        return "ok"
+    except Exception as exc:
+        print(f"firestore_init_failed {exc.__class__.__name__}")
+        return "down"
+
+
+_firestore_status = _init_firestore()
 app = FastAPI(title="TradingEngineAI", version=settings.app_version)
 app.add_middleware(
     CORSMiddleware,
@@ -111,8 +130,8 @@ def health() -> HealthResponse:
         timezone="Asia/Kolkata",
         checks={
             "process": "ok",
-            "firestore": "ok" if settings.firebase_project_id else "unconfigured",
-            "kite": "unconfigured" if not settings.kite_api_key else "down",
+            "firestore": _firestore_status,
+            "kite": "unconfigured" if not settings.kite_api_key else "ok",
             "gift_nifty": "unconfigured" if not settings.gift_nifty_base_url else "down",
             "global_indices": "unconfigured" if not settings.global_indices_base_url else "down",
         },

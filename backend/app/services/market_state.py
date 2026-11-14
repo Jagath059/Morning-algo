@@ -60,7 +60,12 @@ class MarketState:
 
     def overview(self, now: datetime) -> OverviewResponse:
         gift_reason = "GIFT_NIFTY_BASE_URL is not set." if not self.settings.gift_nifty_base_url else "GIFT quote was not fetched."
-        kite_reason = "Kite is not configured." if not self.settings.kite_api_key else "Kite quote was not fetched."
+        if not self.settings.kite_api_key:
+            kite_reason = "Kite is not configured."
+        elif not self.settings.kite_access_token:
+            kite_reason = "Kite API key is set. A daily access token is required before quotes can load."
+        else:
+            kite_reason = "Kite quote was not fetched."
         indicative_reason = "No licensed indicative feed is configured."
         open_reason = "Cash session has not published an open."
         return OverviewResponse(

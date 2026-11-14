@@ -5,6 +5,18 @@ from app.main import app
 client = TestClient(app)
 
 
+def test_zerodha_env_names_fill_kite_settings(monkeypatch):
+    from app.config import Settings
+
+    monkeypatch.setenv("ZERODHA_API_KEY", "kite-key")
+    monkeypatch.setenv("ZERODHA_API_SECRET", "kite-secret")
+    monkeypatch.setenv("NEXT_PUBLIC_FIREBASE_PROJECT_ID", "proj-id")
+    loaded = Settings()
+    assert loaded.kite_api_key == "kite-key"
+    assert loaded.kite_api_secret == "kite-secret"
+    assert loaded.firebase_project_id == "proj-id"
+
+
 def test_preview_is_public_and_production_requires_firebase():
     from app.config import Settings
 

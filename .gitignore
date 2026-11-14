@@ -1,6 +1,8 @@
 .env
 **/.env
 **/*serviceAccount*.json
+**/*service-account*.json
+backend/secrets/
 **/tokens
 backend/.venv
 **/__pycache__
