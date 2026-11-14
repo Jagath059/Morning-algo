@@ -44,7 +44,7 @@ export class Dashboard {
   readonly niftyVwap = signal<Vwap | null>(null);
   readonly sensexVwap = signal<Vwap | null>(null);
   readonly sources = signal<{ name: string; status: string }[]>([]);
-  readonly sampleOn = signal(false);
+  readonly sampleOn = signal(true);
   readonly lastSnapshot = signal<Date | null>(null);
   readonly snapshotCount = signal(0);
   readonly board = computed(() =>
@@ -80,6 +80,9 @@ export class Dashboard {
   }
 
   headerClock(): string {
+    if (this.sampleOn()) {
+      return '12 Nov 2026, 8:52 am';
+    }
     return new Intl.DateTimeFormat('en-IN', {
       timeZone: 'Asia/Kolkata',
       hour: 'numeric',

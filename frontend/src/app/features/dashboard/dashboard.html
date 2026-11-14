@@ -9,7 +9,7 @@
     </div>
   </div>
   <div class="top-meta">
-    <span class="live-dot" [attr.data-state]="connection()">{{ connection() === 'connected' ? 'Live' : connection() }}</span>
+    <span class="live-dot" [attr.data-state]="sampleOn() ? 'sample' : connection()">{{ sampleOn() ? 'Sample' : (connection() === 'connected' ? 'Live' : connection()) }}</span>
     <span>{{ headerClock() }} (IST)</span>
     <button type="button" class="icon-button" (click)="refresh()" aria-label="Refresh data">↻</button>
     <button type="button" class="mode-button" (click)="toggleSample()">
@@ -36,8 +36,15 @@
     @if (board(); as view) {
       <section class="row prices">
         <article class="panel">
-          <h2>GIFT Nifty</h2>
-          <p class="figure">{{ view.giftPrice }}</p>
+          <h2>GIFT Nifty{{ view.sample ? ' (SGX)' : '' }}</h2>
+          <div class="quote-line">
+            <p class="figure">{{ view.giftPrice }}</p>
+            @if (view.sample) {
+              <svg class="spark" viewBox="0 0 88 36" aria-hidden="true">
+                <path d="M2 28 L14 24 L24 26 L34 18 L46 20 L56 12 L68 14 L86 6" />
+              </svg>
+            }
+          </div>
           @if (view.giftMove.text !== '—') {
             <p class="move" [attr.data-tone]="view.giftMove.tone">{{ view.giftMove.text }}</p>
           }

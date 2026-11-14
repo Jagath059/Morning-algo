@@ -100,15 +100,16 @@ describe('Dashboard', () => {
     expect((fixture.nativeElement as HTMLElement).textContent).toContain('TradingEngineAI');
   });
 
-  it('keeps sample prices off the live board until the sample scenario is opened', () => {
+  it('opens on the labeled sample data and hides those prices on the live feeds', () => {
     const element = fixture.nativeElement as HTMLElement;
-    expect(element.textContent).toContain('Live session');
-    expect(element.textContent).not.toContain('25,645.50');
-    (element.querySelector('.mode-button') as HTMLButtonElement).click();
-    fixture.detectChanges();
     expect(element.textContent).toContain('Sample scenario for this layout');
     expect(element.textContent).toContain('25,645.50');
     expect(element.textContent).toContain('not live market prices');
+    expect(element.textContent).not.toContain('Live session');
+    (element.querySelector('.mode-button') as HTMLButtonElement).click();
+    fixture.detectChanges();
+    expect(element.textContent).toContain('Live session');
+    expect(element.textContent).not.toContain('25,645.50');
   });
 });
 
