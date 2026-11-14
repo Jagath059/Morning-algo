@@ -1,3 +1,4 @@
+import asyncio
 from datetime import datetime, timezone
 from time import monotonic
 from uuid import uuid4
@@ -226,6 +227,18 @@ def bias(request: Request):
     return state.bias(_now())
 
 
+def _snapshot() -> dict:
+    now = _now()
+    return {
+        "type": "snapshot",
+        "as_of": now.isoformat(),
+        "overview": state.overview(now).model_dump(mode="json"),
+        "globals": state.globals(now).model_dump(mode="json"),
+        "prediction": state.latest(now, "local-dev", None, record=False).model_dump(mode="json"),
+        "bias": state.bias(now).model_dump(mode="json"),
+    }
+
+
 @app.websocket("/ws/market")
 async def market_socket(socket: WebSocket):
     await socket.accept()
@@ -236,16 +249,8 @@ async def market_socket(socket: WebSocket):
             if not token or (settings.uid_allowlist and token not in settings.uid_allowlist):
                 await socket.close(code=4401)
                 return
-        await socket.send_json(
-            {
-                "type": "snapshot",
-                "as_of": _now().isoformat(),
-                "overview": state.overview(_now()).model_dump(mode="json"),
-                "prediction": state.latest(_now(), "local-dev", None).model_dump(mode="json"),
-                "bias": state.bias(_now()).model_dump(mode="json"),
-            }
-        )
         while True:
-            await socket.receive_text()
+            await socket.send_json(_snapshot())
+            await asyncio.sleep(5)
     except WebSocketDisconnect:
         return

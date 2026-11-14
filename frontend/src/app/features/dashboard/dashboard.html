@@ -21,6 +21,8 @@
 <main class="board">
   @if (sampleOn()) {
     <p class="banner sample-banner">Sample scenario for this layout. The figures are not live market prices and are not today’s prediction.</p>
+  } @else if (overview()?.session_status === 'weekend') {
+    <p class="banner">Weekend. The cash session is closed. This board stays on the live feeds and does not fill in the last session’s prices.</p>
   } @else if (overview()?.auth_mode === 'public-preview' || overview()?.auth_mode === 'firebase') {
     <p class="banner">Prices appear only when a licensed feed returns them. This screen does not place orders.</p>
   } @else if (overview()?.auth_mode === 'local-development') {
@@ -142,6 +144,63 @@
           </ul>
         </article>
       </section>
+
+      @if (!sampleOn()) {
+        <section class="row depth">
+          <article class="panel">
+            <h2>Live session</h2>
+            <p><span>Session</span><strong>{{ sessionLabel(overview()!.session_status) }}</strong></p>
+            <p><span>Trading date</span><strong>{{ overview()!.trading_date }}</strong></p>
+            <p><span>Socket</span><strong>{{ connection() }}</strong></p>
+            <p><span>Updates</span><strong>{{ snapshotCount() }} · {{ liveAge() }}</strong></p>
+            <p class="fine">A snapshot arrives every 5 seconds. A price changes only when its configured feed returns one.</p>
+          </article>
+          <article class="panel">
+            <h2>Nifty 50 live read</h2>
+            @if (niftyPrediction(); as row) {
+              <p><span>Direction</span><strong>{{ row.direction }}</strong></p>
+              <p><span>Data quality</span><strong>{{ row.data_quality }}</strong></p>
+              <p><span>Model</span><strong>{{ row.model_version }} · {{ row.score_kind }}</strong></p>
+              @for (item of row.explanation; track item.feature) {
+                <p class="fine">{{ item.note }}</p>
+              } @empty {
+                <p class="fine">No fresh feature is in the score, so the direction stays UNKNOWN.</p>
+              }
+            } @else {
+              <p class="fine">The prediction row has not arrived.</p>
+            }
+            <p class="fine">Previous close: {{ overview()!.nifty50.previous_close.value ?? '—' }}. {{ overview()!.nifty50.previous_close.reason }}</p>
+            <p class="fine">Indicative open: {{ overview()!.nifty50.indicative_open.reason }}</p>
+          </article>
+          <article class="panel">
+            <h2>Sensex live read</h2>
+            @if (sensexPrediction(); as row) {
+              <p><span>Direction</span><strong>{{ row.direction }}</strong></p>
+              <p><span>Data quality</span><strong>{{ row.data_quality }}</strong></p>
+              @for (item of row.explanation; track item.feature) {
+                <p class="fine">{{ item.note }}</p>
+              } @empty {
+                <p class="fine">No fresh feature is in the score, so the direction stays UNKNOWN.</p>
+              }
+            } @else {
+              <p class="fine">The prediction row has not arrived.</p>
+            }
+            <p class="fine">Previous close: {{ overview()!.sensex.previous_close.value ?? '—' }}. {{ overview()!.sensex.previous_close.reason }}</p>
+            <p class="fine">Indicative open: {{ overview()!.sensex.indicative_open.reason }}</p>
+          </article>
+          <article class="panel">
+            <h2>Live feeds and the after-open rule</h2>
+            @for (source of sources(); track source.name) {
+              <p><span>{{ source.name }}</span><strong>{{ source.status }}</strong></p>
+            }
+            <p class="fine">{{ bias()?.explanation }}</p>
+            <p class="fine">{{ bias()?.risk_warning }}</p>
+            <p class="fine">Nifty candles: {{ niftyIntraday()?.reason }}</p>
+            <p class="fine">15-minute range: {{ niftyRange()?.range_15m?.reason }}</p>
+            <p class="fine">VWAP: {{ niftyVwap()?.reason }}</p>
+          </article>
+        </section>
+      }
     }
   } @else if (!loadError()) {
     <p class="banner">Loading the morning dashboard…</p>

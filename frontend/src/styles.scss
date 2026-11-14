@@ -172,6 +172,7 @@ dd { margin: 0; }
 .row { display: grid; gap: 16px; }
 .prices { grid-template-columns: repeat(4, minmax(0, 1fr)); }
 .lower { grid-template-columns: 1.15fr 1fr 1fr; }
+.depth { grid-template-columns: 1fr 1fr; }
 .middle { grid-template-columns: 1.3fr 1fr 0.9fr; }
 .panel {
   background: linear-gradient(180deg, #152033, #10192a);
@@ -220,6 +221,6 @@ dd { margin: 0; }
 }
 .sample-banner { border-color: var(--flat); color: #f3e2b8; }
 @media (max-width: 1023px) {
-  .prices, .middle, .lower, .split, .bias-pair, .gauge-wrap { grid-template-columns: 1fr; }
+  .prices, .middle, .lower, .depth, .split, .bias-pair, .gauge-wrap { grid-template-columns: 1fr; }
   .board-top { align-items: flex-start; flex-direction: column; }
 }

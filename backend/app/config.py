@@ -26,7 +26,11 @@ class Settings(BaseSettings):
     )
     kite_access_token: str = ""
     gift_nifty_base_url: str = ""
+    gift_nifty_api_token: str = ""
     global_indices_base_url: str = ""
+    global_indices_api_token: str = ""
+    gift_stale_seconds: int = 15
+    asia_stale_seconds: int = 60
 
     score_flat_band: float = 0.15
     gap_flat_abs_percent: float = 0.15

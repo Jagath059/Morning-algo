@@ -45,6 +45,8 @@ export class Dashboard {
   readonly sensexVwap = signal<Vwap | null>(null);
   readonly sources = signal<{ name: string; status: string }[]>([]);
   readonly sampleOn = signal(false);
+  readonly lastSnapshot = signal<Date | null>(null);
+  readonly snapshotCount = signal(0);
   readonly board = computed(() =>
     this.sampleOn()
       ? sampleBoard(this.now())
@@ -87,6 +89,20 @@ export class Dashboard {
       month: 'short',
       year: 'numeric',
     }).format(this.now());
+  }
+
+  liveAge(): string {
+    const stamp = this.lastSnapshot();
+    if (!stamp) {
+      return 'Waiting for the first live snapshot';
+    }
+    const seconds = Math.max(0, Math.round((this.now().getTime() - stamp.getTime()) / 1000));
+    return `Snapshot ${seconds}s ago`;
+  }
+
+  noteSnapshot(): void {
+    this.lastSnapshot.set(new Date());
+    this.snapshotCount.update((count) => count + 1);
   }
 
   toggleSample(): void {
@@ -141,6 +157,7 @@ export class Dashboard {
           this.sensexRange.set(data.sensexRange);
           this.niftyVwap.set(data.niftyVwap);
           this.sensexVwap.set(data.sensexVwap);
+          this.noteSnapshot();
           this.sources.set([
             { name: 'Kite', status: data.health.checks['kite'] ?? 'unknown' },
             { name: 'GIFT Nifty', status: data.health.checks['gift_nifty'] ?? 'unknown' },
@@ -179,8 +196,13 @@ export class Dashboard {
         if (message.type !== 'snapshot') {
           return;
         }
+        this.noteSnapshot();
         if (message.overview) {
           this.overview.set(message.overview);
+        }
+        const globals = (message as { globals?: GlobalMarkets }).globals;
+        if (globals) {
+          this.globals.set(globals);
         }
         if (message.prediction) {
           this.niftyPrediction.set(message.prediction.predictions.find((row) => row.instrument === 'NIFTY50') ?? null);

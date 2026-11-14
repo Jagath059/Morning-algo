@@ -95,7 +95,7 @@ function moveFrom(change: number | null, percent: number | null, suffix = ''): M
 }
 
 function quoteMove(quote: Quote | undefined, points = false): Move {
-  if (!quote || quote.status !== 'ok') {
+  if (!quote || (quote.status !== 'ok' && quote.status !== 'stale')) {
     return { text: '—', tone: 'none' };
   }
   const change = quote.change == null ? null : Number(quote.change);
@@ -158,7 +158,7 @@ export function liveBoard(input: {
   ];
   return {
     sample: false,
-    giftPrice: gift?.status === 'ok' ? money(gift.value) : '—',
+    giftPrice: gift?.status === 'ok' || gift?.status === 'stale' ? money(gift.value) : '—',
     giftMove: quoteMove(gift),
     giftUpdated: gift?.status === 'ok' ? 'Quote loaded' : (gift?.reason ?? 'Feed not configured'),
     niftyPrice: nifty?.status === 'ok' ? money(nifty.value) : '—',

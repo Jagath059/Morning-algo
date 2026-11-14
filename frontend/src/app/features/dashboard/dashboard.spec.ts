@@ -102,6 +102,7 @@ describe('Dashboard', () => {
 
   it('keeps sample prices off the live board until the sample scenario is opened', () => {
     const element = fixture.nativeElement as HTMLElement;
+    expect(element.textContent).toContain('Live session');
     expect(element.textContent).not.toContain('25,645.50');
     (element.querySelector('.mode-button') as HTMLButtonElement).click();
     fixture.detectChanges();

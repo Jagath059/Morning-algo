@@ -1,4 +1,5 @@
 from datetime import datetime, timezone
+from decimal import Decimal
 from uuid import uuid4
 
 from app.config import Settings
@@ -22,6 +23,7 @@ from app.schemas import (
 )
 from app.services.analytics import intraday_bias
 from app.services.prediction_engine import PredictionInputs, evaluate
+from app.services.providers import fetch_gift, fetch_global, fetch_kite
 from app.services.session_clock import ClockConfig, gift_session_name, preopen_phase, session_status, trading_date
 
 GLOBAL_NAMES = {
@@ -45,6 +47,9 @@ class MarketState:
     def __init__(self, settings: Settings):
         self.settings = settings
         self.history: dict[str, list[Prediction]] = {}
+        self._kite_quotes: dict[str, Quote] = {}
+        self._overview_cache: tuple[datetime, OverviewResponse] | None = None
+        self._globals_cache: tuple[datetime, GlobalIndicesResponse] | None = None
 
     def clock(self) -> ClockConfig:
         return ClockConfig(
@@ -58,33 +63,48 @@ class MarketState:
             holidays=frozenset(self.settings.holidays),
         )
 
-    def overview(self, now: datetime) -> OverviewResponse:
-        gift_reason = "GIFT_NIFTY_BASE_URL is not set." if not self.settings.gift_nifty_base_url else "GIFT quote was not fetched."
+    def _kite_reason(self) -> str:
         if not self.settings.kite_api_key:
-            kite_reason = "Kite is not configured."
-        elif not self.settings.kite_access_token:
-            kite_reason = "Kite API key is set. A daily access token is required before quotes can load."
-        else:
-            kite_reason = "Kite quote was not fetched."
+            return "Kite is not configured."
+        if not self.settings.kite_access_token:
+            return "Kite API key is set. A daily access token is required before quotes can load."
+        return "Kite quote was not fetched."
+
+    def overview(self, now: datetime) -> OverviewResponse:
+        if self._overview_cache and abs((now - self._overview_cache[0]).total_seconds()) < 4:
+            return self._overview_cache[1]
+        gift = fetch_gift(self.settings, now)
+        kite = fetch_kite(self.settings, now)
+        self._kite_quotes = kite
         indicative_reason = "No licensed indicative feed is configured."
         open_reason = "Cash session has not published an open."
-        return OverviewResponse(
+        kite_reason = self._kite_reason()
+
+        def previous(key: str) -> Quote:
+            quote = kite.get(key)
+            if quote is not None:
+                return quote
+            return _blank(kite_reason, "kite" if self.settings.kite_api_key else None)
+
+        response = OverviewResponse(
             trading_date=trading_date(now),
             as_of=now.astimezone(timezone.utc),
             session_status=session_status(now, self.clock()),
             auth_mode=self.settings.auth_mode,
-            gift_nifty=_blank(gift_reason, "gift_http" if self.settings.gift_nifty_base_url else None),
+            gift_nifty=gift,
             nifty50=InstrumentOverview(
-                previous_close=_blank(kite_reason, "kite" if self.settings.kite_api_key else None),
+                previous_close=previous("nifty50"),
                 indicative_open=_indicative(indicative_reason),
                 official_open=_blank(open_reason),
             ),
             sensex=InstrumentOverview(
-                previous_close=_blank(kite_reason, "kite" if self.settings.kite_api_key else None),
+                previous_close=previous("sensex"),
                 indicative_open=_indicative(indicative_reason),
                 official_open=_blank(open_reason),
             ),
         )
+        self._overview_cache = (now, response)
+        return response
 
     def gift(self, now: datetime) -> GiftNiftyResponse:
         overview = self.overview(now)
@@ -95,25 +115,35 @@ class MarketState:
         )
 
     def globals(self, now: datetime) -> GlobalIndicesResponse:
-        reason = "GLOBAL_INDICES_BASE_URL is not set." if not self.settings.global_indices_base_url else "Global quotes were not fetched."
+        if self._globals_cache and abs((now - self._globals_cache[0]).total_seconds()) < 4:
+            return self._globals_cache[1]
+        fetched = fetch_global(self.settings, now)
+        reason = "GLOBAL_INDICES_BASE_URL is not set." if fetched is None else "Global quotes were not fetched."
         indices = [
             GlobalIndex(
                 id=key,
                 name=name,
                 session_state="unknown",
                 session_date=None,
-                quote=_blank(reason),
+                quote=_blank(reason) if fetched is None else fetched[key],
             )
             for key, name in GLOBAL_NAMES.items()
         ]
-        return GlobalIndicesResponse(
+        fresh = [row.id for row in indices if row.quote.status == "ok"]
+        response = GlobalIndicesResponse(
             as_of=now.astimezone(timezone.utc),
             indices=indices,
             summary=GlobalSummary(
-                text=f"US cash close and Asian quotes are unavailable because {reason}",
-                inputs_used=[],
+                text=(
+                    "US and Asian quotes loaded from the configured feed."
+                    if fresh
+                    else f"US cash close and Asian quotes are unavailable because {reason}"
+                ),
+                inputs_used=fresh,
             ),
         )
+        self._globals_cache = (now, response)
+        return response
 
     def preopen(self, now: datetime) -> PreOpenResponse:
         overview = self.overview(now)
@@ -124,14 +154,68 @@ class MarketState:
             sensex=overview.sensex.indicative_open,
         )
 
-    def prediction_inputs(self) -> PredictionInputs:
+    def _feature(self, quote: Quote | None) -> tuple[float | None, bool]:
+        if quote is None or quote.change_percent is None or quote.status not in {"ok", "stale"}:
+            return None, False
+        return float(quote.change_percent), quote.status == "stale"
+
+    def _mean(self, quotes: list[Quote]) -> tuple[float | None, bool]:
+        fresh: list[float] = []
+        stale: list[float] = []
+        for quote in quotes:
+            value, is_stale = self._feature(quote)
+            if value is None:
+                continue
+            (stale if is_stale else fresh).append(value)
+        if fresh:
+            return sum(fresh) / len(fresh), False
+        if stale:
+            return sum(stale) / len(stale), True
+        return None, False
+
+    def prediction_inputs(self, now: datetime | None = None) -> PredictionInputs:
+        if now is None:
+            overview = None
+            markets = None
+            kite: dict[str, Quote] = {}
+        else:
+            overview = self.overview(now)
+            markets = self.globals(now)
+            kite = self._kite_quotes
+        stale: set[str] = set()
+        gift_value, gift_stale = self._feature(None if overview is None else overview.gift_nifty)
+        if gift_stale:
+            stale.add("gift_nifty_change")
+        us_value, us_stale = (None, False)
+        asia_value, asia_stale = (None, False)
+        if markets is not None:
+            by_id = {row.id: row.quote for row in markets.indices}
+            us_value, us_stale = self._mean([by_id[key] for key in ("nasdaq", "djia", "spx") if key in by_id])
+            asia_value, asia_stale = self._mean([by_id[key] for key in ("nikkei225", "hangseng") if key in by_id])
+        if us_stale:
+            stale.add("us_session")
+        if asia_stale:
+            stale.add("asia_session")
+        vix = kite.get("india_vix")
+        vix_change, vix_stale = self._feature(vix)
+        if vix_stale:
+            stale.add("india_vix_change")
+        vix_level = None
+        if vix is not None and vix.status == "ok" and vix.previous_reference and vix.change:
+            vix_level = float(Decimal(vix.previous_reference) + Decimal(vix.change))
         return PredictionInputs(
+            gift_nifty_change=gift_value,
+            us_session=us_value,
+            asia_session=asia_value,
+            india_vix_change=vix_change,
+            india_vix_level=vix_level,
+            stale_features=stale,
             flat_band=self.settings.score_flat_band,
             confidence_cap=self.settings.confidence_cap_uncalibrated,
         )
 
-    def latest(self, now: datetime, uid: str, instrument: str | None) -> PredictionList:
-        result = evaluate(self.prediction_inputs())
+    def latest(self, now: datetime, uid: str, instrument: str | None, *, record: bool = True) -> PredictionList:
+        result = evaluate(self.prediction_inputs(now))
         created = now.astimezone(timezone.utc)
         instruments = [instrument] if instrument else ["NIFTY50", "SENSEX"]
         rows = []
@@ -164,7 +248,8 @@ class MarketState:
                 inputs_as_of=created,
             )
             rows.append(row)
-            self.history.setdefault(uid, []).append(row)
+            if record:
+                self.history.setdefault(uid, []).append(row)
         return PredictionList(predictions=rows)
 
     def history_for(self, uid: str, instrument: str | None, limit: int) -> PredictionList:
@@ -173,8 +258,15 @@ class MarketState:
             rows = [row for row in rows if row.instrument == instrument]
         return PredictionList(predictions=list(reversed(rows[-limit:])))
 
+    def _candle_reason(self) -> str:
+        if not self.settings.kite_api_key:
+            return "Kite is not configured."
+        if not self.settings.kite_access_token:
+            return "A daily Kite access token is required before candles can load."
+        return "Kite candles are not loaded yet."
+
     def intraday(self, now: datetime, instrument: str, interval: str) -> IntradayResponse:
-        reason = "kite_plan_lacks_market_data" if self.settings.kite_api_key else "Kite is not configured."
+        reason = self._candle_reason()
         return IntradayResponse(
             instrument=instrument,
             interval=interval,
@@ -186,7 +278,7 @@ class MarketState:
         )
 
     def opening_range(self, now: datetime, instrument: str) -> OpeningRangeResponse:
-        reason = "Kite is not configured." if not self.settings.kite_api_key else "incomplete_candles"
+        reason = self._candle_reason()
         window = RangeWindow(status="unavailable", reason=reason)
         return OpeningRangeResponse(
             instrument=instrument,
@@ -196,7 +288,7 @@ class MarketState:
         )
 
     def vwap(self, now: datetime, instrument: str) -> VwapResponse:
-        reason = "Kite is not configured." if not self.settings.kite_api_key else "index_volume_absent"
+        reason = self._candle_reason()
         return VwapResponse(
             instrument=instrument,
             trading_date=trading_date(now),
